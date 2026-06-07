@@ -4,7 +4,6 @@ A high-performance, internal matchmaker operational dashboard. This application 
 
 ## 🚀 Live Demo
 * **Frontend Application:** [https://tdc-matchmaker-frontend-lake.vercel.app/](https://tdc-matchmaker-frontend-lake.vercel.app/)
-* **Backend API Service:** [https://tdc-matchmaker-backend-rouz.onrender.com](https://tdc-matchmaker-backend-rouz.onrender.com)
 
 ---
 
