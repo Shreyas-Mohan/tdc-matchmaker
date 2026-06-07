@@ -89,7 +89,7 @@ export const ProfileViewer = ({ loadingDetails, selectedCustomer, onSaveNote }) 
               <span className="text-slate-400 font-medium">Religion/Caste</span><span className="font-semibold text-slate-100">{selectedCustomer.religion} ({selectedCustomer.caste})</span>
             </div>
             <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-700/50 flex justify-between items-center shadow-sm">
-              <span className="text-slate-400 font-medium">Languages</span><span className="font-semibold text-slate-100">{selectedCustomer.languagesKnown || 'English, Hindi'}</span>
+              <span className="text-slate-400 font-medium">Languages</span><span className="font-semibold text-slate-100">{selectedCustomer.languagesKnown?.length ? selectedCustomer.languagesKnown.join(', ') : 'English, Hindi'}</span>
             </div>
             <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-700/50 flex justify-between items-center shadow-sm">
               <span className="text-slate-400 font-medium">Siblings</span><span className="font-semibold text-slate-100">{selectedCustomer.siblings || '1 Brother, 0 Sisters'}</span>
