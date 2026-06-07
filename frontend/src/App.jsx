@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { SignedIn, SignedOut, SignInButton, UserButton } from '@clerk/clerk-react';
 import { Heart, CheckCircle2, AlertCircle, PanelLeftClose, PanelLeft, PanelRightClose, PanelRight } from 'lucide-react';
 
@@ -36,6 +36,10 @@ function App() {
   const [selectedMatch, setSelectedMatch] = useState(null);
   const [modalPayload, setModalPayload] = useState(null);
 
+  // Cache Refs (to avoid redundant API calls and enable instant navigation)
+  const detailsCache = useRef({}); // { [id]: profileData }
+  const matchesCache = useRef({}); // { [`${id}_${algo}`]: matchesData }
+
   const API_BASE = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}/api/customers`;
 
   const triggerToast = (message, type = 'success') => {
@@ -62,27 +66,66 @@ function App() {
   useEffect(() => {
     if (!selectedCustomerId) return;
 
+    const cachedProfile = detailsCache.current[selectedCustomerId];
+    const cacheKey = `${selectedCustomerId}_${algoMode}`;
+    const cachedMatches = matchesCache.current[cacheKey];
+
+    if (cachedProfile && cachedMatches) {
+      setSelectedCustomer(cachedProfile);
+      setMatches(cachedMatches);
+      setLoadingDetails(false);
+      return;
+    }
+
     const abortController = new AbortController();
     const { signal } = abortController;
 
     const fetchProfileAndMatches = async () => {
       setLoadingDetails(true);
       try {
-        const [profileRes, matchesRes] = await Promise.all([
-          fetch(`${API_BASE}/${selectedCustomerId}`, { signal }),
-          fetch(`${API_BASE}/${selectedCustomerId}/matches?algo=${algoMode}`, { signal })
-        ]);
+        let profileData = cachedProfile;
+        let matchesData = cachedMatches;
 
-        if (!profileRes.ok || !matchesRes.ok) {
-          throw new Error('Server returned error status');
+        const fetches = [];
+        let profileFetchIndex = -1;
+        let matchesFetchIndex = -1;
+
+        if (!profileData) {
+          profileFetchIndex = fetches.length;
+          fetches.push(
+            fetch(`${API_BASE}/${selectedCustomerId}`, { signal }).then(res => {
+              if (!res.ok) throw new Error('Profile fetch failed');
+              return res.json();
+            })
+          );
         }
 
-        const profileData = await profileRes.json();
-        const matchesData = await matchesRes.json();
+        if (!matchesData) {
+          matchesFetchIndex = fetches.length;
+          fetches.push(
+            fetch(`${API_BASE}/${selectedCustomerId}/matches?algo=${algoMode}`, { signal }).then(res => {
+              if (!res.ok) throw new Error('Matches fetch failed');
+              return res.json();
+            })
+          );
+        }
+
+        const results = await Promise.all(fetches);
+
+        if (profileFetchIndex !== -1) {
+          profileData = results[profileFetchIndex];
+        }
+        if (matchesFetchIndex !== -1) {
+          matchesData = results[matchesFetchIndex];
+        }
 
         if (!signal.aborted) {
           setSelectedCustomer(profileData);
           setMatches(matchesData);
+
+          // Update caches
+          detailsCache.current[selectedCustomerId] = profileData;
+          matchesCache.current[cacheKey] = matchesData;
         }
       } catch (err) {
         if (err.name !== 'AbortError') {
@@ -128,6 +171,13 @@ function App() {
       });
       if (res.ok) {
         setSelectedCustomer(prev => ({ ...prev, notes: updatedNotes }));
+        // Sync cache
+        if (detailsCache.current[customerId]) {
+          detailsCache.current[customerId] = {
+            ...detailsCache.current[customerId],
+            notes: updatedNotes
+          };
+        }
         triggerToast('Matchmaker notes synchronized with database.');
       } else {
         triggerToast('Failed to save notes to database.', 'error');
@@ -240,7 +290,12 @@ function App() {
             payload={modalPayload} 
             onClose={() => setModalPayload(null)} 
             onSend={() => { 
-              setMatches(prevMatches => prevMatches.map(m => m._id === modalPayload.candidateId ? { ...m, reasoningTag: 'PROPOSAL SENT' } : m));
+              const updatedMatches = matches.map(m => m._id === modalPayload.candidateId ? { ...m, reasoningTag: 'PROPOSAL SENT' } : m);
+              setMatches(updatedMatches);
+              // Sync cache
+              const cacheKey = `${selectedCustomerId}_${algoMode}`;
+              matchesCache.current[cacheKey] = updatedMatches;
+
               triggerToast('Email transmitted seamlessly.'); 
               setModalPayload(null); 
             }} 
