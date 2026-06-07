@@ -36,7 +36,7 @@ function App() {
   const [selectedMatch, setSelectedMatch] = useState(null);
   const [modalPayload, setModalPayload] = useState(null);
 
-  const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api/customers';
+  const API_BASE = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}/api/customers`;
 
   const triggerToast = (message, type = 'success') => {
     setToast({ message, type });
