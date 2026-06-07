@@ -2,6 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { SignedIn, SignedOut, SignInButton, UserButton } from '@clerk/clerk-react';
 import { Heart, CheckCircle2, AlertCircle, PanelLeftClose, PanelLeft, PanelRightClose, PanelRight } from 'lucide-react';
 
+import logoImg from './assets/thedatecrew_logo.jpg';
+import coverImg from './assets/thedatecrew_cover.jpg';
+
 // Import our modular components
 import { Sidebar } from './components/layout/Sidebar';
 import { ProfileViewer } from './components/layout/ProfileViewer';
@@ -202,14 +205,36 @@ function App() {
   return (
     <>
       <SignedOut>
-        <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4">
-          <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-8 text-center shadow-xl">
-            <div className="inline-flex p-3 bg-rose-500/10 rounded-xl text-rose-500 mb-4">
-              <Heart className="w-8 h-8 fill-current" />
+        <div className="min-h-screen relative flex items-center justify-center p-4 overflow-hidden bg-slate-950">
+          {/* Subtle brand background cover banner */}
+          <div className="absolute inset-0 z-0 flex items-start justify-center pt-16">
+            <img 
+              src={coverImg} 
+              alt="The Date Crew Background" 
+              className="w-full max-w-5xl object-contain opacity-25 filter blur-[0.5px] select-none pointer-events-none"
+            />
+            {/* Dark gradient vignette layer to blend the background smoothly */}
+            <div className="absolute inset-0 bg-gradient-to-b from-slate-950/70 via-slate-950/95 to-slate-950" />
+          </div>
+
+          {/* Glassmorphic Login Card */}
+          <div className="relative z-10 w-full max-w-md bg-slate-900/60 backdrop-blur-xl border border-slate-800/80 rounded-3xl p-8 text-center shadow-[0_0_80px_-15px_rgba(244,63,94,0.15)] transition-all duration-300">
+            {/* Brand Logo circular badge */}
+            <div className="mb-5 inline-block">
+              <img 
+                src={logoImg} 
+                alt="TDC Logo" 
+                className="w-20 h-20 rounded-full border-2 border-rose-500/40 shadow-lg object-cover mx-auto select-none pointer-events-none transition-transform duration-500 hover:scale-105"
+              />
             </div>
+            
             <h1 className="text-2xl font-bold text-slate-100 mb-2">TDC Matchmaker MVP</h1>
+            <p className="text-xs text-slate-400 font-medium tracking-wide max-w-xs mx-auto">
+              Find your true right love • Operator Workstation
+            </p>
+
             <SignInButton mode="modal">
-              <button className="w-full bg-rose-600 hover:bg-rose-500 text-white font-medium py-3 px-4 rounded-xl transition cursor-pointer mt-6">
+              <button className="w-full bg-rose-600 hover:bg-rose-500 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-300 cursor-pointer mt-8 shadow-md hover:shadow-rose-600/20 active:scale-[0.98]">
                 Sign In to Workstation
               </button>
             </SignInButton>
