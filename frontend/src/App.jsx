@@ -61,22 +61,46 @@ function App() {
 
   useEffect(() => {
     if (!selectedCustomerId) return;
+
+    const abortController = new AbortController();
+    const { signal } = abortController;
+
     const fetchProfileAndMatches = async () => {
       setLoadingDetails(true);
       try {
         const [profileRes, matchesRes] = await Promise.all([
-          fetch(`${API_BASE}/${selectedCustomerId}`),
-          fetch(`${API_BASE}/${selectedCustomerId}/matches?algo=${algoMode}`)
+          fetch(`${API_BASE}/${selectedCustomerId}`, { signal }),
+          fetch(`${API_BASE}/${selectedCustomerId}/matches?algo=${algoMode}`, { signal })
         ]);
-        setSelectedCustomer(await profileRes.json());
-        setMatches(await matchesRes.json());
+
+        if (!profileRes.ok || !matchesRes.ok) {
+          throw new Error('Server returned error status');
+        }
+
+        const profileData = await profileRes.json();
+        const matchesData = await matchesRes.json();
+
+        if (!signal.aborted) {
+          setSelectedCustomer(profileData);
+          setMatches(matchesData);
+        }
       } catch (err) {
-        triggerToast('AI analysis synchronization encounter tracking error.', 'error');
+        if (err.name !== 'AbortError') {
+          console.error('Fetch error:', err);
+          triggerToast('AI analysis synchronization encounter tracking error.', 'error');
+        }
       } finally {
-        setLoadingDetails(false);
+        if (!signal.aborted) {
+          setLoadingDetails(false);
+        }
       }
     };
+
     fetchProfileAndMatches();
+
+    return () => {
+      abortController.abort();
+    };
   }, [selectedCustomerId, algoMode]);
 
   const handleGenerateEmailDraft = async (candidateId) => {

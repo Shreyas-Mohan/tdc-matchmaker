@@ -135,7 +135,7 @@ export const updateCustomerNotes = async (req, res) => {
     const updatedCustomer = await Customer.findByIdAndUpdate(
       customerId,
       { notes: notes },
-      { new: true } // Returns the updated document
+      { returnDocument: 'after' } // Returns the updated document
     );
 
     if (!updatedCustomer) {

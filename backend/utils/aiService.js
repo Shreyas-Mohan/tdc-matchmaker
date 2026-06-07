@@ -6,6 +6,7 @@ dotenv.config();
 const aiClient = new OpenAI({
   apiKey: process.env.GROQ_API_KEY,
   baseURL: 'https://api.groq.com/openai/v1',
+  timeout: 10000, // 10 seconds timeout to prevent hanging requests
 });
 
 // Basic Matching Algorithm
