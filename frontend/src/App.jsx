@@ -1,0 +1,230 @@
+import React, { useState, useEffect } from 'react';
+import { SignedIn, SignedOut, SignInButton, UserButton } from '@clerk/clerk-react';
+import { Heart, CheckCircle2, AlertCircle, PanelLeftClose, PanelLeft, PanelRightClose, PanelRight } from 'lucide-react';
+
+// Import our modular components
+import { Sidebar } from './components/layout/Sidebar';
+import { ProfileViewer } from './components/layout/ProfileViewer';
+import { MatchPool } from './components/layout/MatchPool';
+import { MatchReviewModal } from './components/modals/MatchReviewModal';
+import { EmailDraftModal } from './components/modals/EmailDraftModal';
+
+function App() {
+  // Data State
+  const [customers, setCustomers] = useState([]);
+  const [selectedCustomerId, setSelectedCustomerId] = useState(null);
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [matches, setMatches] = useState([]);
+  
+  // UI & Loading State
+  const [loadingList, setLoadingList] = useState(true);
+  const [loadingDetails, setLoadingDetails] = useState(false);
+  const [toast, setToast] = useState(null);
+  
+  // Layout Collapse States
+  const [showSidebar, setShowSidebar] = useState(true);
+  const [showMatchPool, setShowMatchPool] = useState(true);
+  
+  // Interaction State
+  const [searchQuery, setSearchQuery] = useState('');
+  const [genderFilter, setGenderFilter] = useState('All');
+  const [statusFilter, setStatusFilter] = useState('All');
+  const [sortBy, setSortBy] = useState('name');
+  const [algoMode, setAlgoMode] = useState('advanced');
+  
+  // Modal State
+  const [selectedMatch, setSelectedMatch] = useState(null);
+  const [modalPayload, setModalPayload] = useState(null);
+
+  const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api/customers';
+
+  const triggerToast = (message, type = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 4000);
+  };
+
+  useEffect(() => {
+    const fetchCustomers = async () => {
+      try {
+        const res = await fetch(API_BASE);
+        const data = await res.json();
+        setCustomers(data);
+        if (data.length > 0) setSelectedCustomerId(data[0]._id);
+      } catch (err) {
+        triggerToast('Failed to connect to the server framework.', 'error');
+      } finally {
+        setLoadingList(false);
+      }
+    };
+    fetchCustomers();
+  }, []);
+
+  useEffect(() => {
+    if (!selectedCustomerId) return;
+    const fetchProfileAndMatches = async () => {
+      setLoadingDetails(true);
+      try {
+        const [profileRes, matchesRes] = await Promise.all([
+          fetch(`${API_BASE}/${selectedCustomerId}`),
+          fetch(`${API_BASE}/${selectedCustomerId}/matches?algo=${algoMode}`)
+        ]);
+        setSelectedCustomer(await profileRes.json());
+        setMatches(await matchesRes.json());
+      } catch (err) {
+        triggerToast('AI analysis synchronization encounter tracking error.', 'error');
+      } finally {
+        setLoadingDetails(false);
+      }
+    };
+    fetchProfileAndMatches();
+  }, [selectedCustomerId, algoMode]);
+
+  const handleGenerateEmailDraft = async (candidateId) => {
+    try {
+      const res = await fetch(`${API_BASE}/${selectedCustomerId}/send-match`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ candidateId })
+      });
+      const data = await res.json();
+      setModalPayload({ ...data, candidateId }); 
+      setSelectedMatch(null);
+      triggerToast('AI-Personalized match proposal compiled successfully!');
+    } catch (err) {
+      triggerToast('Could not compile personalized email draft.', 'error');
+    }
+  };
+
+  const handleSaveNote = async (customerId, updatedNotes) => {
+    try {
+      const res = await fetch(`${API_BASE}/${customerId}/notes`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notes: updatedNotes })
+      });
+      if (res.ok) {
+        setSelectedCustomer(prev => ({ ...prev, notes: updatedNotes }));
+        triggerToast('Matchmaker notes synchronized with database.');
+      } else {
+        triggerToast('Failed to save notes to database.', 'error');
+      }
+    } catch (err) {
+      triggerToast('Network error while saving notes.', 'error');
+    }
+  };
+
+  const processedCustomers = customers
+    .filter(c => {
+      const matchesSearch = `${c.firstName} ${c.lastName}`.toLowerCase().includes(searchQuery.toLowerCase()) || c.city.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesGender = genderFilter === 'All' || c.gender === genderFilter;
+      const matchesStatus = statusFilter === 'All' || c.statusTag === statusFilter;
+      return matchesSearch && matchesGender && matchesStatus;
+    })
+    .sort((a, b) => {
+      if (sortBy === 'income') return b.incomeLPA - a.incomeLPA;
+      return `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`);
+    });
+
+  return (
+    <>
+      <SignedOut>
+        <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4">
+          <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-8 text-center shadow-xl">
+            <div className="inline-flex p-3 bg-rose-500/10 rounded-xl text-rose-500 mb-4">
+              <Heart className="w-8 h-8 fill-current" />
+            </div>
+            <h1 className="text-2xl font-bold text-slate-100 mb-2">TDC Matchmaker MVP</h1>
+            <SignInButton mode="modal">
+              <button className="w-full bg-rose-600 hover:bg-rose-500 text-white font-medium py-3 px-4 rounded-xl transition cursor-pointer mt-6">
+                Sign In to Workstation
+              </button>
+            </SignInButton>
+          </div>
+        </div>
+      </SignedOut>
+
+      <SignedIn>
+        <div className="h-screen bg-slate-950 text-slate-100 flex flex-col overflow-hidden relative">
+          
+          {/* Global Toast Notification */}
+          {toast && (
+            <div className={`fixed top-4 right-4 z-50 flex items-center gap-2.5 px-4 py-3 rounded-xl shadow-2xl border transition-all duration-300 transform translate-y-0 opacity-100 bg-slate-900 ${toast.type === 'error' ? 'border-red-500/30 text-red-400' : 'border-emerald-500/30 text-emerald-400'}`}>
+              {toast.type === 'error' ? <AlertCircle className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
+              <span className="text-xs font-medium text-slate-200">{toast.message}</span>
+            </div>
+          )}
+
+          {/* App Header with Toggle Controls */}
+          <header className="h-16 border-b border-slate-800 bg-slate-900/50 flex items-center justify-between px-6 shrink-0">
+            <div className="flex items-center gap-4">
+              <button onClick={() => setShowSidebar(!showSidebar)} className="text-slate-400 hover:text-rose-400 transition cursor-pointer" title="Toggle Sidebar">
+                {showSidebar ? <PanelLeftClose className="w-5 h-5" /> : <PanelLeft className="w-5 h-5" />}
+              </button>
+              <div className="flex items-center gap-2 border-l border-slate-800 pl-4">
+                <Heart className="w-5 h-5 text-rose-500 fill-current" />
+                <span className="font-semibold text-lg tracking-wide">TDC Matchmaker Dashboard</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-6">
+              <button onClick={() => setShowMatchPool(!showMatchPool)} className="text-slate-400 hover:text-amber-400 transition flex items-center gap-2 text-sm font-medium cursor-pointer" title="Toggle AI Matches">
+                {showMatchPool ? 'Hide Matches' : 'Show Matches'}
+                {showMatchPool ? <PanelRightClose className="w-5 h-5" /> : <PanelRight className="w-5 h-5" />}
+              </button>
+              <div className="flex items-center gap-4 border-l border-slate-800 pl-6">
+                <span className="text-sm text-slate-400 font-medium">Operator Instance</span>
+                <UserButton afterSignOutUrl="/" />
+              </div>
+            </div>
+          </header>
+
+          {/* Main 3-Column Workspace */}
+          <main className="flex flex-1 overflow-hidden relative">
+            {showSidebar && (
+              <Sidebar 
+                searchQuery={searchQuery} setSearchQuery={setSearchQuery}
+                genderFilter={genderFilter} setGenderFilter={setGenderFilter}
+                sortBy={sortBy} setSortBy={setSortBy}
+                loadingList={loadingList} processedCustomers={processedCustomers}
+                selectedCustomerId={selectedCustomerId} setSelectedCustomerId={setSelectedCustomerId}
+                algoMode={algoMode} setAlgoMode={setAlgoMode}
+              />
+            )}
+            
+            {/* The middle column will automatically flex to fill available space */}
+            <ProfileViewer 
+              loadingDetails={loadingDetails} 
+              selectedCustomer={selectedCustomer} 
+              onSaveNote={handleSaveNote}
+            />
+
+            {showMatchPool && (
+              <MatchPool 
+                loadingDetails={loadingDetails} 
+                matches={matches} 
+                setSelectedMatch={setSelectedMatch} 
+              />
+            )}
+          </main>
+
+          {/* Overlay Modals */}
+          <MatchReviewModal 
+            match={selectedMatch} 
+            onClose={() => setSelectedMatch(null)} 
+            onGenerate={handleGenerateEmailDraft} 
+          />
+          <EmailDraftModal 
+            payload={modalPayload} 
+            onClose={() => setModalPayload(null)} 
+            onSend={() => { 
+              setMatches(prevMatches => prevMatches.map(m => m._id === modalPayload.candidateId ? { ...m, reasoningTag: 'PROPOSAL SENT' } : m));
+              triggerToast('Email transmitted seamlessly.'); 
+              setModalPayload(null); 
+            }} 
+          />
+        </div>
+      </SignedIn>
+    </>
+  );
+}
+
+export default App;
