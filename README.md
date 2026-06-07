@@ -30,7 +30,7 @@ A high-performance, internal matchmaker operational dashboard. This application 
 
 ### 1. Clone the repository
 ```bash
-git clone https://github.com/yourusername/tdc-matchmaker.git
+git clone https://github.com/Shreyas-Mohan/tdc-matchmaker.git
 cd tdc-matchmaker
 ```
 
